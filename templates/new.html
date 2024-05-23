@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <style>
+        /* Add your custom styles here */
+
+/* Global styles */
+body {
+  font-family: 'Arial', sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f9f9f9;
+}
+
+/* Header styles */
+header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #333;
+  color: #fff;
+  padding: 10px 20px; /* Adjust padding as needed */
+  text-align: center;
+}
+
+/* Main content styles */
+main {
+  padding: 20px;
+}
+
+/* Input section styles */
+.input-section {
+  margin-bottom: 20px;
+}
+
+/* Input styles */
+input,
+textarea {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+/* Increase vertical length for text summarization */
+.text-summarization textarea {
+  height: 300px; /* Adjust height as needed */
+}
+
+/* Button styles */
+button {
+  padding: 10px 20px;
+  cursor: pointer;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 5px;
+}
+
+/* Summary container styles */
+.result-section {
+  margin-top: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 20px;
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-indicator {
+  text-align: center;
+}
+
+.spinner {
+  border: 5px solid #f3f3f3;
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 2s linear infinite;
+  margin-bottom: 20px; /* Add margin to bottom */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Button container styles */
+.button-container {
+  display: flex;
+  justify-content: space-between;
+}
+
+.paste-button,
+.clear-button {
+  display: inline-block;
+}
+
+/* Reduce width of summary length input */
+.summary-options {
+  display: flex;
+  align-items: center;
+}
+
+#summaryLengthValue {
+  width: 60px; /* Adjust width as needed */
+}
+
+h1 {
+  text-align: left;
+}
+.button-container button {
+  margin: 0 5px; /* Add margin between buttons */
+}
+    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text Summarizer - SummarizeIt</title>
+</head>
+<body>
+  <header>
+    <h1>SummarizeIt</h1>
+  </header>
+  <main>
+    <form class="w-full flex flex-col md:h-screen" action="{{url_for('Summarize')}}" method="post">
+
+    <div class="input-section text-summarization">
+      <h2>Enter or Paste Text</h2>
+      <div class="input-container">
+        <textarea name= 'data' id="inputText" placeholder="Paste or enter text to summarize..." aria-label="Input text"></textarea>
+        <div class="button-container">
+          <div class="paste-button">
+            <button id="pasteButton">Paste</button>
+          </div>
+          <div class="undo-redo-buttons">
+            <button id="undoButton" disabled>Undo</button>
+            <button id="redoButton" disabled>Redo</button>
+          </div>
+          <div class="clear-button">
+            <button id="clearButton">Clear Text</button>
+          </div>
+        </div>
+      </div>
+      <div class="char-counter" aria-live="polite"></div>
+    </div>
+    <div class="options-section">
+      <h2>Options</h2>
+      <div class="summary-options">
+        <label for="summaryLengthValue">Summary Length:</label>
+        <div>
+          <!-- <input name= 'maxL' type="number" min="1" max="100" step="1" value="50" id="summaryLengthValue" aria-label="Summary length percentage">
+          <span>%</span> -->
+          <input type="range" class="m-2" min="20" max="100" name="maxL">
+        </div>
+      </div>
+    </div>
+    <div class="action-section">
+      <button id="summarizeButton" type="submit" onclick="Check()">Summarize</button>
+    </div>
+
+    </form>
+
+    
+       
+  
+    <section class="result-section" hidden>
+      <h2>Summary</h2>
+      
+      <div class="summary-container">
+        <p id="summary" aria-live="polite">
+            {{result}}
+        </p>
+      </div>
+      <div class="loading-indicator" hidden>
+        <p>Summarizing...</p>
+        <div class="spinner"></div>
+      </div>
+      <div class="save-share-buttons">
+        <button id="saveButton">Save Summary</button>
+      </div>
+    </section>
+  </main>
+  
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.3.0/dist/tesseract.min.js"></script>
+  <script>
+    function Check() {
+
+var reg = /<(.|\n)*>/g;
+
+if (reg.test(document.getElementById("data").value) == true) {
+    var ErrorText = 'Make Sure You Provide Valid Data.';
+    alert('Error Text');
+
+}
+}
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+  const inputText = document.getElementById('inputText');
+  const clearButton = document.getElementById('clearButton');
+  const pasteButton = document.getElementById('pasteButton');
+  const summarizeButton = document.getElementById('summarizeButton');
+  const summary = document.getElementById('summary');
+  const summaryLengthValue = document.getElementById('summaryLengthValue');
+  const resultSection = document.querySelector('.result-section');
+  const loadingIndicator = document.querySelector('.loading-indicator');
+  const undoButton = document.getElementById('undoButton');
+  const redoButton = document.getElementById('redoButton');
+
+  let textHistory = [];
+  let currentIndex = -1;
+
+  // Function to update undo and redo buttons
+  const updateButtons = () => {
+      undoButton.disabled = currentIndex <= 0;
+      redoButton.disabled = currentIndex >= textHistory.length - 1;
+  };
+
+  // Function to clear the input textarea
+  clearButton.addEventListener('click', () => {
+      inputText.value = '';
+      textHistory.push('');
+      currentIndex++;
+      updateButtons();
+  });
+
+  // Function to paste text from clipboard
+  pasteButton.addEventListener('click', async () => {
+      try {
+          const permission = await navigator.permissions.query({ name: 'clipboard-read' });
+          if (permission.state === 'granted' || permission.state === 'prompt') {
+              const clipboardData = await navigator.clipboard.readText();
+              inputText.value += clipboardData;
+              textHistory.push(inputText.value);
+              currentIndex++;
+              updateButtons();
+          } else {
+              console.error('Clipboard permission denied.');
+          }
+      } catch (error) {
+          console.error('Error accessing clipboard:', error);
+      }
+  });
+
+  // Function to undo text changes
+  undoButton.addEventListener('click', () => {
+      if (currentIndex > 0) {
+          currentIndex--;
+          inputText.value = textHistory[currentIndex];
+          updateButtons();
+      }
+  });
+
+  // Function to redo text changes
+  redoButton.addEventListener('click', () => {
+      if (currentIndex < textHistory.length - 1) {
+          currentIndex++;
+          inputText.value = textHistory[currentIndex];
+          updateButtons();
+      }
+  });
+
+  // Function to summarize text
+  summarizeButton.addEventListener('click', () => {
+      const text = inputText.value.trim();
+      if (!text) {
+          summary.textContent = 'Please enter text to summarize.';
+          return;
+      }
+
+      const summaryLength = parseInt(summaryLengthValue.value);
+      loadingIndicator.removeAttribute('hidden');
+      resultSection.setAttribute('hidden', true);
+
+      // Simulate sending text and length to a backend (replace with API call if needed)
+      setTimeout(() => {
+          const summaryText = `This is a placeholder summary generated based on a requested length of ${summaryLength} percent.`;
+          summary.textContent = summaryText;
+          loadingIndicator.setAttribute('hidden', true);
+          resultSection.removeAttribute('hidden');
+      }, 2000); // Simulated delay of 2 seconds
+  });
+   // Function to save summarized text to clipboard
+   saveButton.addEventListener('click', () => {
+    const textToCopy = summary.textContent;
+    navigator.clipboard.writeText(textToCopy)
+        .then(() => {
+            alert('Summary copied to clipboard!');
+        })
+        .catch(err => {
+            console.error('Error copying text to clipboard:', err);
+            alert('Failed to copy summary to clipboard. Please try again.');
+        });
+});
+});
+
+  </script>
+</body>
+</html>
